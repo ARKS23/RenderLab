@@ -1,0 +1,13 @@
+# Normalize detected text in Git; do not force a rewrite of working files.
+* text=auto
+
+# Unreal packages are binary. LFS is configured locally, without file locking.
+*.uasset filter=lfs diff=lfs merge=lfs -text
+*.umap filter=lfs diff=lfs merge=lfs -text
+
+# Shell scripts need LF even on Windows checkouts.
+*.sh text eol=lf
+
+# Windows command scripts need CRLF on checkout.
+*.bat text eol=crlf
+*.cmd text eol=crlf

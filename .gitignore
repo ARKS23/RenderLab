@@ -1,0 +1,56 @@
+# Unreal generated files, including source-built plugins.
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+
+# Generated IDE state and project files. Keep .vsconfig.
+.vs/
+.idea/
+.vscode/
+*.sln
+*.slnx
+*.suo
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+
+# Local Python environments and caches. Keep source and dependency locks.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local logs, crash dumps and GPU/profiling captures.
+*.log
+*.dmp
+*.rdc
+*.wpix
+*.nv-gpudmp
+*.utrace
+*.ucache
+
+# Secrets and local environment overrides.
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.p12
+
+# Keep project MCP configuration, not Codex local session state.
+/.codex/*
+!/.codex/config.toml
+
+# Operating system metadata.
+.DS_Store
+Thumbs.db
+Desktop.ini
