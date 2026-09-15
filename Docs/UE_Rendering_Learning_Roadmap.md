@@ -298,6 +298,7 @@ Source/RenderLab/                  Gameplay Actor、Component 和控制入口
 Plugins/RenderLabRendering/        阶段 3 才创建的 Runtime 渲染插件
   Source/
   Shaders/
+Docs/tasks/                       分任务学习与操作指导
 Docs/Experiments/                 分阶段实验记录
 Saved/RenderLabCaptures/           本机抓帧和临时性能数据
 ```
@@ -390,6 +391,8 @@ UE/GPU/驱动、关卡、入口、分辨率、屏幕百分比、画质与操作�
 ## 9. 第一个学习任务
 
 **任务名：Lab01A - 最小材质实验台。**
+
+详细指导：[Lab01A_Material_Workbench.md](E:/ue_project/pratice/RenderLab/Docs/tasks/Lab01A_Material_Workbench.md)，包含学习资料、分步实验、源码阅读和验收清单。任务尚未实施。
 
 目标：在不写渲染插件、不修改 Engine 的前提下，理解 UE 材质实例和 C++ 参数更新。
 
