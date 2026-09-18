@@ -50,5 +50,4 @@ protected:
 	// MID
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> RuntimeMaterial;
-
 };
