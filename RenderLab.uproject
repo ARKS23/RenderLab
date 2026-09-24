@@ -41,6 +41,10 @@
 			"TargetAllowList": [
 				"Editor"
 			]
+		},
+		{
+			"Name": "RenderLabRendering",
+			"Enabled": true
 		}
 	]
 }
