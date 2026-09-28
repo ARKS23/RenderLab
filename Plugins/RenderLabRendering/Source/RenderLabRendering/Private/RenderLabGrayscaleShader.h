@@ -9,4 +9,5 @@ struct FPostProcessMaterialInputs;
 FScreenPassTexture AddRenderLabGrayscalePass(
 	FRDGBuilder& GraphBuilder, 
 	const FSceneView& View, 
-	const FPostProcessMaterialInputs& Inputs);
+	const FPostProcessMaterialInputs& Inputs,
+	float Strength);

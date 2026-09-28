@@ -6,6 +6,7 @@
 #include "RenderLabGrayscaleSubsystem.generated.h"
 
 class FSceneViewExtensionBase;
+struct FRenderLabGrayscaleRenderState;
 
 
 /**
@@ -25,6 +26,9 @@ public:
 
 	// World Subsystem 销毁时释放 View Extension
 	virtual void Deinitialize() override;
+	
+	UFUNCTION(BlueprintCallable)
+	void SetGrayscaleSettings(bool bEnabled = false, float Strength = 0.0f);
 
 protected:
 	// 仅在 Game 和 PIE World 中启用
@@ -34,4 +38,8 @@ protected:
 private:
 	// 持有 Scene View Extension，保证其生命周期
 	TSharedPtr<FSceneViewExtensionBase, ESPMode::ThreadSafe> ViewExtension;
+	TSharedPtr<FRenderLabGrayscaleRenderState, ESPMode::ThreadSafe> RenderState; // State根资源
+	bool bAcceptingSettings = false;
+	bool bGameEnabled = false;
+	float GameStrength = 0.0f;
 };

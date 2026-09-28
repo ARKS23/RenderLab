@@ -20,6 +20,7 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture) // 输入纹理
 		SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)  // 采样器
+		SHADER_PARAMETER(float, Strength)					  // Lab03B强度参数
 		RENDER_TARGET_BINDING_SLOTS()						  // 输出到哪里
 	END_SHADER_PARAMETER_STRUCT()
 	
@@ -37,7 +38,7 @@ IMPLEMENT_GLOBAL_SHADER(
     "MainPS",
     SF_Pixel);
 
-FScreenPassTexture AddRenderLabGrayscalePass(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs)
+FScreenPassTexture AddRenderLabGrayscalePass(FRDGBuilder& GraphBuilder, const FSceneView& View, const FPostProcessMaterialInputs& Inputs, float Strength)
 {
 	// 获取当前后处理阶段的 SceneColor 输入
 	const FScreenPassTexture Input = FScreenPassTexture::CopyFromSlice(
@@ -58,6 +59,7 @@ FScreenPassTexture AddRenderLabGrayscalePass(FRDGBuilder& GraphBuilder, const FS
 	auto *Parameters = GraphBuilder.AllocParameters<FRenderLabGrayscalePS::FParameters>();
 	Parameters->InputTexture = Input.Texture;
 	Parameters->InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	Parameters->Strength = Strength;  // 可传入调整的参数
 	Parameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 		
 	// 获取当前 Feature Level 对应的 Global Shader
