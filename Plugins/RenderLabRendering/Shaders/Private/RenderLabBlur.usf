@@ -1,0 +1,36 @@
+﻿#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+
+Texture2D InputTexture;
+SamplerState InputSampler;
+
+SCREEN_PASS_TEXTURE_VIEWPORT(InputViewport)
+float2 BlurDirection;
+
+float4 MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0) : SV_Target0
+{
+	const float Weights[5] = { 1.0, 4.0, 6.0, 4.0, 1.0 }; // 五点二项式核，模拟一维高斯模糊
+	float2 UV = UVAndScreenPos.xy; // 当前位置的uv坐标
+	float2 UVStep = BlurDirection * InputViewport_ExtentInverse; // uv对应的像素偏移
+	float3 Sum = 0.0;
+
+	// 模糊采样过程
+	[unroll]
+	for (int i = -2; i <= 2; ++i)
+	{
+		// 领域采样限制有效区间
+		float2 SampleUV = clamp(UV + float(i) * UVStep,
+			InputViewport_UVViewportBilinearMin,
+			InputViewport_UVViewportBilinearMax);
+		float3 Color = InputTexture.SampleLevel(InputSampler, SampleUV, 0).rgb;
+		Sum += Color * Weights[i + 2]; // 权重处理
+	}
+
+	// Alpha取中心值
+	float2 CenterUV = clamp(UV,
+			InputViewport_UVViewportBilinearMin,
+			InputViewport_UVViewportBilinearMax);
+	float Alpha = InputTexture.SampleLevel(InputSampler, CenterUV, 0).a;
+
+	return float4(Sum / 16.0, Alpha);
+}

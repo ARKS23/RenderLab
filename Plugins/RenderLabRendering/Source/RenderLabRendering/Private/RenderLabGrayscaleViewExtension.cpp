@@ -2,7 +2,9 @@
 
 #include "DataDrivenShaderPlatformInfo.h"
 #include "RenderLabGrayscaleRenderState.h"
+#include "RenderLabInputDebugShader.h"
 #include "RenderLabGrayscaleShader.h"
+#include "RenderLabBlurShader.h"
 #include "SceneView.h"
 
 FRenderLabGrayscaleViewExtension::FRenderLabGrayscaleViewExtension(
@@ -16,7 +18,7 @@ void FRenderLabGrayscaleViewExtension::SubscribeToPostProcessingPass(EPostProces
 	{
 		return;
 	}
-	
+
 	if (!RenderState->bEnabled)
 	{
 		return;
@@ -34,17 +36,19 @@ void FRenderLabGrayscaleViewExtension::SubscribeToPostProcessingPass(EPostProces
 		return;
 	}
 
-	// 注册灰度后处理回调
-	// InOutPassCallbacks.Add(FPostProcessingPassDelegate::CreateStatic(&AddRenderLabGrayscalePass));
-	const float StrengthSnapshot = FMath::Clamp(RenderState->Strength, 0.f, 1.f);
-	// InOutPassCallbacks.Add(
-	// 	FPostProcessingPassDelegate::CreateLambda(
-	// 		[StrengthSnapshot](FRDGBuilder& GraphBuilder, const FSceneView& InView, const FPostProcessMaterialInputs& Inputs)
-	// 		{
-	// 			return AddRenderLabGrayscalePass(GraphBuilder, InView, Inputs, StrengthSnapshot);
-	// 		}	
-	// 	)	
-	// );
-	InOutPassCallbacks.Add(FPostProcessingPassDelegate::CreateStatic(&AddRenderLabGrayscalePass, StrengthSnapshot));
+	// 注册处理回调
+	if (RenderState->Experiment == ERenderLabExperiment::Grayscale)
+	{
+		const float StrengthSnapshot = FMath::Clamp(RenderState->Strength, 0.f, 1.f);
+		InOutPassCallbacks.Add(FPostProcessingPassDelegate::CreateStatic(&AddRenderLabGrayscalePass, StrengthSnapshot));
+	}
+	else if (RenderState->Experiment == ERenderLabExperiment::Blur)
+	{
+		const float MixSnapshot = FMath::Clamp(RenderState->BlurMix, 0.f, 1.f);
+		InOutPassCallbacks.Add(FPostProcessingPassDelegate::CreateStatic(&AddRenderLabBlurPasses, MixSnapshot));
+	}
+	else if (RenderState->Experiment == ERenderLabExperiment::InputDebug)
+	{
+		InOutPassCallbacks.Add(FPostProcessingPassDelegate::CreateStatic(&AddRenderLabInputDebugPass));
+	}
 }
-

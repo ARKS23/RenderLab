@@ -4,15 +4,31 @@
 
 项目：RenderLab / Unreal Engine **5.8.0 CL 55116800** / Windows / DX12。
 
-状态（2026-09-23）：**Lab03A 进行中。** 插件加载与 Shader 路径映射、Global Shader 编译已验证；独立 Pass 函数已通过 C++ 编译。View Extension 接入与画面验证待完成，Lab03B-D 尚未实施。下文是完整任务设计，其中尚未实施的片段不视为已编译验证。
+状态（2026-10-08）：**A/B 已有实现，用户已反馈 Lab03C/D 完成；详细结果待归档。** 保留灰度插件和蓝图参数控制作为回归基线，不再从创建插件开始。本次只更新文档，未重新运行、抓帧或打包；用户完成反馈与本次独立测试结果分开记录。
 
+- 年度目标与日历：[全年学习路线](../图形与游戏引擎开发_全年学习路线_2026-2027.md)。
 - 上级路线：[UE_Rendering_Learning_Roadmap.md](../UE_Rendering_Learning_Roadmap.md)。
 - 前置任务：[Lab02_PostProcess_Workbench.md](Lab02_PostProcess_Workbench.md)。
 - 前置记录：[Lab02_Results.md](../Experiments/Lab02_Results.md)。
 - Shader 思维参考：[ShaderCodeGuide.md](../ShaderCodeGuide.md)。
-- 当前实操步骤：[Lab03A_ViewExtension_Integration.md](Lab03A_ViewExtension_Integration.md)，把已有 Shader/Pass 接入 PIE，包含逐文件代码与验证顺序。
+- 历史接入步骤：[Lab03A_ViewExtension_Integration.md](Lab03A_ViewExtension_Integration.md)，保留逐文件代码用于复盘，不覆盖现有 Lab03B 实现。
+- 当前实操入口：[Lab04：多 Pass RDG、AO 与引导滤波](Lab04_RDG_AO_Filtering_Workbench.md#lab04a)。本文 C/D 保留作复盘与回归清单。
 
-你已反馈抓帧学习基本完成，可以进入本阶段。Lab02 文档仍保留“GPU 抓帧待开始”，开始 Lab03 时补上已有捕获的事件、输入输出和源码入口即可，不需要从头重做 Lab02。不要仅因存在 `.rdc` 文件就把全部分析条目标为已验收。
+Lab02 的抓帧学习已有用户反馈，书面记录待补齐，不需要从头重做。本轮捕获用于验证自己写出的 Pass；不要仅因存在 `.rdc` 文件就把全部分析条目标为已验收。
+
+<a id="progress"></a>
+## 当前检查点
+
+| 子任务 | 实现与运行反馈 | 待补的验收证据 |
+| --- | --- | --- |
+| Lab03A | `855e357`（2026-09-24）包含灰度渲染链；插件、Shader、View Extension 已接入并有成功反馈 | 输入输出、诊断模式、ViewRect 与输出路径的完整记录 |
+| Lab03B | `bb1fac7`（2026-09-28）包含参数、关闭与释放逻辑；蓝图调用已获成功反馈 | 零强度／关闭事件差异、重复设置、World 隔离等测试 |
+| Lab03C | 用户反馈完成；对话中已核对输入输出、Strength=0.70、USF 与反汇编、回放 Shader 替换 | 整理 G0/G1/G2、资源表和材质版对照的既有结果，不将单次 0.70 捕获当作全部证据 |
+| Lab03D | 用户反馈完成，继续后续学习 | 归档重复 PIE、切图、窗口、屏幕百分比与 Development 包结果及路径 |
+
+`Docs/Experiments/Lab03_Results.md` 尚待整理既有结果时建立。下文未勾选项保留作逐项归档／回归标准，不表示用户必须重做已有实验，也不能在没有细项记录时全部自动勾选。
+
+第 6、7 节保留从零实践的教学顺序。示例不是当前文件的逐字镜像：现有实现使用 `RenderLabRendering.cpp` 作为模块实现，增加了 `RenderLabGrayscaleRenderState.h`，并通过静态委托的附加参数传递强度。
 
 ## 1. 本阶段要解决的问题
 
@@ -32,7 +48,7 @@
 6. 效果关闭、窗口变化、PIE 结束和关卡切换时，资源与对象怎样保持有效。
 7. 编辑器内成功的功能怎样进入 Cook 和打包程序。
 
-建议用 5～7 次学习完成，每次约 1～2 小时；以阶段验收决定进度。第一次只完成 Lab03A 的插件、编译和输入直通，不要求同时完成线程控制与打包。
+最初建议用 5～7 次学习完成，每次约 1～2 小时；目前沿用 A/B 成果，只安排剩余验收。全部学习计入全年计划的主项目预算，不重新增加一套完整 Lab03 排期。
 
 ## 2. 实验规格与范围
 
@@ -119,9 +135,9 @@ git log -3 --oneline
 
 2026-09-21 编写本文时，工作区已有 `Config/DefaultEngine.ini` 修改，以及新增的法线实验材质和 Lab02 External Actor 资产。这些属于已有工作，不能为开始 Lab03 而覆盖、回退或清理。
 
-当前配置含 RenderDoc 集成、Shader 调试输出及编译进程数量调整，其中注释提到启动内存不足后的恢复设置。第一次编译保持这些值；需要额外 Shader 诊断时，再按一个明确问题逐项启用并记录。不要把所有 Shader 的调试符号和输出一次性全打开。
+初版检查时配置含 RenderDoc 集成、Shader 调试输出及编译进程数量调整，其中注释提到启动内存不足后的恢复设置。后续实验先读取现有配置，不按历史描述覆盖；需要额外 Shader 诊断时，再按一个明确问题逐项启用并记录。不要把所有 Shader 的调试符号和输出一次性全打开。
 
-已有提交是可恢复基线。需要建立实验分支时，先保存与梳理现有工作，再按 [Git_Workflow.md](../Git_Workflow.md) 操作；本指南没有创建分支、提交或新插件。
+已有提交是可恢复基线；Lab03B 的 `bb1fac7` 已于 2026-09-28 推送。需要建立实验分支时，先保存与梳理现有工作，再按 [Git_Workflow.md](../Git_Workflow.md) 操作。本次只整合文档，没有新增实现或执行 Git 提交。
 
 ### 4.2 记录实验条件
 
@@ -132,11 +148,11 @@ git log -3 --oneline
 - SDR/HDR、曝光、Local Exposure，以及参与比较的后处理效果。
 - 编辑器视口、PIE 新窗口、独立运行或打包程序中的哪一种模式。
 
-建议独立新建简单关卡，包含几种明显颜色和细边缘。若复制 Lab02 地图，先识别并只在副本中关闭已有的灰度、描边和随机材质变化，防止两套效果叠加或画面持续变化干扰比较。不要改写 Lab02 原地图。
+建议使用独立简单关卡，包含几种明显颜色和细边缘。已有 Lab03B 提交保存了 `Content/Levels/Lab02_Level.umap` 的实验改动，本次不回退该资产，也不假定已经有独立 Lab03 地图。后续需要隔离测试时，从确认过的当前状态建立副本，在副本中关闭干扰效果；记录实际使用的地图，不为匹配示例路径迁移已有资产。
 
 ### 4.3 建议目录与职责
 
-以下目录尚未创建：
+插件目录已存在，下列插件文件名按当前实现列出；独立测试图、实验报告和捕获子目录仍是建议，使用时先检查是否存在，不重复创建或覆盖：
 
 ```text
 Plugins/RenderLabRendering/
@@ -145,9 +161,11 @@ Plugins/RenderLabRendering/
     RenderLabRendering.Build.cs
     Public/
       RenderLabGrayscaleSubsystem.h
+      RenderLabRendering.h
     Private/
-      RenderLabRenderingModule.cpp
+      RenderLabRendering.cpp
       RenderLabGrayscaleSubsystem.cpp
+      RenderLabGrayscaleRenderState.h
       RenderLabGrayscaleViewExtension.h
       RenderLabGrayscaleViewExtension.cpp
       RenderLabGrayscaleShader.h
@@ -358,7 +376,7 @@ void SubscribeToPostProcessingPass(
     bool bIsPassEnabled) override;
 ```
 
-回调本身返回 `FScreenPassTexture`，参数为：
+回调接口返回 `FScreenPassTexture`，其调用参数如下；这里保留成员回调形式用于理解接口，不要求把当前静态函数重构成它：
 
 ```cpp
 FScreenPassTexture AfterTonemap_RenderThread(
@@ -484,6 +502,8 @@ BeginPlay
 3. 命令在 Render Thread 把快照复制进渲染侧状态。
 4. Render Thread 上的订阅和 Pass 构建读取该状态，将本次值写入 RDG 参数结构。
 
+**当前实现对应：**订阅时复制出 `StrengthSnapshot`，调用 `CreateStatic(&AddRenderLabGrayscalePass, StrengthSnapshot)` 将值作为委托附加参数保存；执行回调时传给 Pass 函数末尾的 `float Strength`，再赋给 `Parameters->Strength`。不需要为适配早期示例再增加成员回调或另一套状态对象。
+
 示意：
 
 ```text
@@ -525,6 +545,7 @@ Subsystem 结束时：
 - [ ] 渲染侧没有读取 Subsystem/Actor 的可变属性。
 - [ ] 普通 Editor World 与资产预览不受游戏 World 的控制影响。
 
+<a id="lab03c"></a>
 ## 8. Lab03C：抓帧、位置核对与 Lab02 对照
 
 ### C1. 先确认真实插入位置
@@ -533,7 +554,7 @@ Subsystem 结束时：
 
 ```text
 Tonemap
-  -> Tonemap 的 View Extension 回调（本次拟接入位置）
+  -> Tonemap 的 View Extension 回调（当前灰度代码接入位置）
   -> FXAA（若启用）及其扩展回调
   -> SMAA（若启用）及其扩展回调
   -> Scene Color After Tonemapping 的后处理材质链
@@ -548,6 +569,8 @@ Tonemap
 ### C2. 捕获与资源表
 
 固定相机、效果强度与实验条件，等 Shader 编译完成和画面稳定。捕获以下三种状态：
+
+为便于捕获，每次 PIE 先保持一种固定设置，避免五秒延迟自动切换干扰取样；分别运行三次，不以暂停游戏作为线程同步手段。捕获目标为 PIE 游戏视图，不是普通 Editor 视口。
 
 | 编号 | 设置 | 预期 |
 | --- | --- | --- |
@@ -597,6 +620,7 @@ Tonemap
 - [ ] 插入位置差异得到解释，不把视觉接近当成逐像素等价证明。
 - [ ] 没有以代码更短、节点更少或单次捕获时间推断性能优劣。
 
+<a id="lab03d"></a>
 ## 9. Lab03D：边界验证与首次 Development 打包
 
 ### D1. 测试矩阵
@@ -661,7 +685,7 @@ Tonemap
 
 ### 11.1 本机 UE5.8 源码入口
 
-以下文件和关键符号已于 2026-09-21 在本机 **5.8.0 / CL 55116800** 源码中读取核对。表中是参考入口，不能据此宣称本文尚未实现的插件已经编译或运行通过。行号对应本机快照，升级后按符号搜索。
+以下文件和关键符号已于 2026-09-21 在本机 **5.8.0 / CL 55116800** 源码中读取核对。表中是参考入口，不替代插件的实际编译与运行验收；当前实现及待验收范围见顶部检查点。行号对应本机快照，升级后按符号搜索。
 
 | 顺序 | 源码入口 | 本次只回答这个问题 |
 | --- | --- | --- |
@@ -688,7 +712,7 @@ OpenColorIO 用于阅读本机已存在的接入方式，不需要为了 Lab03 �
 
 ### 11.2 官方概念资料
 
-以下为官方文档入口，按当前问题阅读局部。本文的 UE5.8 接口结论依据上面的本机源码；本轮在线检索未取得可核验的页面正文，因此不把网上示例标为已验证适配 5.8。
+以下为官方文档入口，按当前问题阅读局部。本文的 UE5.8 接口结论依据上面的本机源码；2026-09-21 编写初版时的在线检索未取得可核验正文，2026-09-30 整合时未重新核验外部资料，因此不把网上示例标为已验证适配 5.8。
 
 ```text
 Shaders in Plugins
@@ -704,7 +728,7 @@ ISceneViewExtension API
 https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Engine/ISceneViewExtension
 ```
 
-RDG 资料先看资源声明、Pass 参数、图的构建/执行和资源生命周期。资源提取、异步计算及历史纹理在 Lab04 再系统展开。
+RDG 资料先看资源声明、Pass 参数、图的构建/执行和资源生命周期。Lab04 先做多 Pass 与 AO／滤波；资源提取、异步计算和历史纹理按后续具体问题展开，不作为 V1 必做前置。
 
 ## 12. 实验记录、验收与提交
 
@@ -767,6 +791,6 @@ Build/Cook/Package 与独立运行记录。
 
 记录中的截图和小型说明可提交；插件 `Binaries/Intermediate`、完整 `.rdc`、Shader 调试输出及 DDC 不作为源码提交。不会因本文存在就自动创建、编译或提交实验实现。
 
-完成 Lab03 后再进入 **Lab04：横向模糊 → 纵向模糊 → 合成**，届时深入多 Pass 依赖、全/半分辨率、资源生命周期，并按需要引入 Compute Shader。
+后续按 [Lab04 实践指南](Lab04_RDG_AO_Filtering_Workbench.md)推进：最小多 Pass 模糊与合成 → 深度／法线与位置重建 → AO → 引导滤波 → V1 验证。复用现有插件，保留灰度回归基线；半分辨率、Compute Shader 和时域按范围与实际需要安排，不一次全部引入。
 
-**第一次学习的起点：建立 Lab03 实验基线，完成 A1～A2，再逐步做到原图直通。**
+**当前学习起点：Lab04A 横向模糊。Lab03 用于复盘、归档和回归，不从插件创建重新开始。**

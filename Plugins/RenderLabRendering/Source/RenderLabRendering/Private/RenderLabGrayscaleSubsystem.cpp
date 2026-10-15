@@ -1,5 +1,6 @@
 ﻿#include "../Public/RenderLabGrayscaleSubsystem.h"
 
+#include "AudioMixerBlueprintLibrary.h"
 #include "Engine/World.h"
 #include "RenderLabGrayscaleViewExtension.h"
 #include "RenderLabGrayscaleRenderState.h"
@@ -28,7 +29,7 @@ void URenderLabGrayscaleSubsystem::Initialize(
 void URenderLabGrayscaleSubsystem::Deinitialize()
 {
 	check(IsInGameThread());
-	bAcceptingSettings = false;	
+	bAcceptingSettings = false;
 	bGameEnabled = false;
 	GameStrength = 0.0f;
 	if (RenderState.IsValid())
@@ -40,10 +41,10 @@ void URenderLabGrayscaleSubsystem::Deinitialize()
 				check(IsInRenderingThread());
 				State->bEnabled = false;
 				State->Strength = 0.0f;
-			}	
+			}
 		);
 	}
-	
+
 	UE_LOG(LogTemp, Display,
 		TEXT("[RenderLabRendering] Releasing view extension for %s"),
 		*GetNameSafe(GetWorld()));
@@ -58,17 +59,52 @@ void URenderLabGrayscaleSubsystem::SetGrayscaleSettings(bool bEnabled, float Str
 {
 	check(IsInGameThread());
 	if (!bAcceptingSettings || !RenderState.IsValid()) return;
-	
+
 	const float SafeStrength = FMath::IsFinite(Strength) ? FMath::Clamp(Strength, 0.0f, 1.0f) : 0.0f;
 	bGameEnabled = bEnabled;
 	GameStrength = SafeStrength;
-	
-	const FRenderLabGrayscaleRenderState Snapshot(bEnabled, SafeStrength);
+
+	// 给渲染线程，需要mirror
+	const FRenderLabGrayscaleRenderState Snapshot(bEnabled, ERenderLabExperiment::Grayscale, SafeStrength, 1.0f);
 	const TSharedRef<FRenderLabGrayscaleRenderState> State = RenderState.ToSharedRef();
 	ENQUEUE_RENDER_COMMAND(UpdateRenderLabGrayscaleSettings)(
 		[State, Snapshot](FRHICommandListImmediate&)
 		{
 			*State = Snapshot;
-		}	
+		}
+	);
+}
+
+void URenderLabGrayscaleSubsystem::SetBlurSettings(bool bEnable, float Mix)
+{
+	check(IsInGameThread());
+	if (!bAcceptingSettings || !RenderState.IsValid()) return;
+
+	const float SafeMix = FMath::IsFinite(Mix) ? FMath::Clamp(Mix, 0.0f, 1.0f) : 0.0f;
+	bGameEnabled = bEnable;
+	GameStrength = SafeMix;
+	const FRenderLabGrayscaleRenderState Snapshot(bEnable, ERenderLabExperiment::Blur, GameStrength, SafeMix);
+	const TSharedRef<FRenderLabGrayscaleRenderState> State = RenderState.ToSharedRef();
+	ENQUEUE_RENDER_COMMAND(UpdateRenderLabBlurSettings)(
+		[State, Snapshot](FRHICommandListImmediate&)
+		{
+			check(IsInRenderingThread());
+			*State = Snapshot;
+		}
+	);
+}
+
+void URenderLabGrayscaleSubsystem::SetInputDebugSettings(bool bEnable)
+{
+	check(IsInGameThread());
+	if (!bAcceptingSettings || !RenderState.IsValid()) return;
+
+	const FRenderLabGrayscaleRenderState Snapshot(bEnable, ERenderLabExperiment::InputDebug, GameStrength, BlurStrength);
+	const TSharedRef<FRenderLabGrayscaleRenderState> State = RenderState.ToSharedRef();
+	ENQUEUE_RENDER_COMMAND(UpdateRenderLabInputDebugSettings)(
+		[State, Snapshot](FRHICommandListImmediate&)
+		{
+			*State = Snapshot;
+		}
 	);
 }

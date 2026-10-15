@@ -1,0 +1,83 @@
+Generation mode: Built-in image_gen tool
+Source document: Docs/tasks/Lab04_RDG_AO_Filtering_Workbench.md
+
+Use case: infographic-diagram.
+Asset type: A Chinese educational development-workflow poster for the actual RenderLab Unreal Engine Lab04 experiment documentation.
+Primary request: Generate one polished, technically accurate image titled "Lab04 整体实验开发流程". A clear process diagram, not a decorative illustration. High-resolution wide landscape, roughly 16:9, generous margins, readable Chinese sans-serif typography, sharp vector-like lines rendered as a raster image, warm white background, dark navy text, restrained blue/teal accents. Use amber for the current starting point and orange dashed lines for corrective feedback. No logos, watermarks, fictional screenshots, or code blocks.
+
+Composition:
+Header title, short subtitle, then a full-width preparation banner.
+Below the banner, five equally sized stage cards horizontally ordered A → B → C → D → E, with strong arrowheads, aligned typography, spacious text, and each card having an explicit acceptance condition in a pale tinted footer. A downward connector from preparation goes to A. Put a small amber badge at A reading "起步：A4 横向模糊".
+Below the cards, show one compact shared experimental iteration loop as a connected horizontal ribbon.
+At the bottom, include a carefully separated dashed fallback route and a very small optional-extension note.
+Maintain excellent text legibility: shorten decorative elements to make room for the exact supplied labels. Do not add extra prose. Show this as a plan with acceptance gates, NOT completed work; no checkmarks or completed-state badges.
+
+Exact Chinese text to render (use verbatim, allowing natural line breaks):
+Title: "Lab04 整体实验开发流程"
+Subtitle: "RenderLab · UE 5.8 · 多 Pass RDG / 屏幕空间 AO / 引导滤波"
+Small header tag: "开发规划 · 按验收推进"
+
+Preparation banner:
+"0｜准备实验基线"
+"沿用 Lab03 插件与参数链"
+"独立关卡 · 固定相机与曝光 · 记录分辨率 / AA / RHI"
+"隔离已有后处理干扰"
+
+Stage A:
+"Lab04A"
+"多 Pass RDG"
+"横向模糊 → 纵向模糊"
+"原图与模糊图合成"
+"验证边界、窗口与开关"
+"验收：资源依赖可追踪"
+
+Stage B:
+"Lab04B"
+"输入与位置重建"
+"DeviceZ → 线性深度"
+"重建位置与几何法线"
+"核对坐标、单位与背景"
+"验收：重投影与法线正确"
+
+Stage C:
+"Lab04C"
+"最小屏幕空间 AO"
+"确定性半球采样"
+"半径 / Bias / 采样数"
+"平面、接触与凹角验证"
+"验收：独立 AO 行为正确"
+
+Stage D:
+"Lab04D"
+"深度 / 法线引导滤波"
+"普通模糊作为对照"
+"联合双边滤波"
+"低采样 / 滤波 / 高采样对照"
+"验收：降噪与边缘保持有证据"
+
+Stage E:
+"Lab04E"
+"RenderLab V1 交付"
+"三场景与性能测量"
+"窗口、生命周期与打包回归"
+"记录、复现步骤与演示"
+"验收：可运行、可解释、可复现"
+
+Shared experiment loop ribbon heading:
+"每个阶段都遵循"
+Connected steps:
+"预测结果" → "最小实现" → "编译运行" → "抓帧 / 数值检查" → "记录与提交"
+A small orange feedback arrow returns from "抓帧 / 数值检查" to "最小实现", with text:
+"未通过：定位问题后复测"
+
+Fallback at bottom, visually subordinate:
+"范围缩减"
+"AO 仍不可靠 → 已验证的输入调试 + 引导滤波 → 缩减版 V1"
+"明确标注：AO 未完成"
+
+Footer:
+"V1 后可选：Compute 对照 / 半分辨率 / 时域"
+"高采样是参考，不是真实 Ground Truth"
+
+Technical constraints:
+B must precede C; do not imply denoising can fix wrong reconstruction. The optional scope-reduction path is a fallback, not an automatic shortcut. AO is an independent screen-space diagnostic in this version, not replacement of UE lighting. This is joint bilateral filtering, not the named linear-model Guided Filter algorithm. Keep the overall image focused on development stages and evidence. All Chinese characters must be accurate and readable.

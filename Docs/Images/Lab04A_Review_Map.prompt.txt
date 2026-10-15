@@ -1,0 +1,80 @@
+Generation mode: Built-in image_gen tool
+Project: RenderLab / Lab04A
+Sources: RenderLabBlurShader.cpp, RenderLabBlur.usf, RenderLabComposite.usf, and Lab04 practice guide
+
+Use case: infographic-diagram.
+Asset type: A Chinese study-review mind map and process infographic for the user's completed Lab04A in the actual RenderLab UE project.
+Primary request: Create ONE technically accurate, beautifully organized "Lab04A 复盘思维流程图". This is a learning recap, not a roadmap for all of Lab04. Focus on parameter flow, the three-pass RDG resource graph, filtering math, binding contracts, and RenderDoc inspection. Landscape approximately 3:2, high-resolution with very readable Chinese text, ample whitespace, crisp vector-like diagram design rendered as a raster image. Warm white background, navy text, restrained blue/teal accents, subtle amber for important invariants. Consistent professional graphics-engineering notebook style. No people, photorealistic screenshots, logos, watermarks, decorative 3D objects, or huge code listings.
+
+Organize into four clear horizontal tiers plus header and a compact footer. Give the central resource graph the most emphasis. Maintain generous margins and strong typographic hierarchy. Text must be exact and readable; do not squeeze small labels. Rounded rectangles represent processing passes, stacked-sheet shapes represent textures. Clearly separate CPU parameter flow from the RDG resource dependency graph. No completion checkmarks implying that unreported boundary tests passed.
+
+HEADER:
+Title: "Lab04A 复盘思维流程图"
+Subtitle: "RenderLab · UE 5.8 · 多 Pass RDG 模糊与合成"
+Small developmental progression ribbon:
+"A1 参数入口 → A4 横向模糊 → A5 纵向模糊 → A6 合成 → A7 抓帧验证"
+
+TIER 1: parameter flow, heading "① 参数如何进入渲染"
+Four horizontally connected nodes with these verbatim labels, each main label and one or two short sublines:
+Node 1: "蓝图 / Subsystem"
+"SetBlurSettings(Enabled, Mix)"
+Node 2: "GT → RT"
+"按值快照 · 渲染命令"
+Node 3: "View Extension"
+"Renderer 每帧调用"
+"Tonemap 后 · Blur 模式"
+Node 4: "RDG 构图"
+"AddRenderLabBlurPasses"
+Use a small clear annotation below the row:
+"CPU 构建资源与 Pass → RDG 执行并提交 → GPU 计算像素"
+Important conceptual accuracy: the Subsystem updates state and the Renderer calls the View Extension; do not label the GT parameter-flow arrows as direct function calls into RT rendering.
+
+TIER 2, dominant central panel, heading "② 三个 Pass 的资源依赖"
+Draw this EXACT main directed chain, all seven nodes aligned left-to-right:
+Texture node "Original" → Pass "BlurX" with sublabel "(1, 0) 横向" → Texture "TempX" → Pass "BlurY" with sublabel "(0, 1) 纵向" → Texture "TempY" → Pass "Composite" → Texture "Output".
+CRITICAL extra edge: branch a second arrow directly FROM THE Original TEXTURE to the Composite PASS. Route this bypass above the main row and label it "保留原图". It must end at Composite, not at Output, BlurY, or TempY. Composite must visibly have exactly two texture inputs: Original and TempY. BlurY must read TempX.
+Under Output, a short note "OverrideOutput 有效则使用，否则新建".
+Small note below the graph: "圆角框：Pass　叠片：纹理　箭头：资源依赖"
+Below that, display a thin event-name strip:
+"GPU 事件：RenderLab.BlurX → RenderLab.BlurY → RenderLab.BlurComposite"
+
+TIER 3: three equal-width study branches placed side by side, each with a concise heading. Keep the area airy and make numerical labels easy to scan.
+LEFT heading "③ 单方向模糊核"
+Show five sample positions with five aligned weights:
+Position labels: "-2" "-1" "0" "+1" "+2"
+Weight labels: "1" "4" "6" "4" "1"
+Below them, exact text:
+"RGB = 加权和 / 16"
+"Alpha 保留中心值"
+"UV 步长 = 方向 × ExtentInverse"
+"固定半径：2 个输入纹素"
+
+CENTER heading "④ 资源与绑定约定"
+Exact short lines:
+"原图与模糊图：Extent / ViewRect 一致"
+"输入采样：限制到有效视图"
+"读取与写入：使用不同纹理"
+"临时纹理：仅属于当前 RDG 图"
+"输出绑定：RenderTargets[0]"
+Do not imply that a texture name or CPU variable name establishes resource dependencies.
+
+RIGHT heading "⑤ 开关与 Mix"
+A compact real table with columns "状态" "画面" "Pass 数".
+Rows:
+"关闭" | "原图" | "0"
+"开启，Mix=0" | "原图" | "3"
+"开启，Mix=0.5" | "原图与模糊混合" | "3"
+"开启，Mix=1" | "完整模糊" | "3"
+Short equation below the table:
+"RGB = lerp(Original, Blurred, Mix)"
+"Alpha 来自 Original"
+
+TIER 4 compact footer band, heading "⑥ RenderDoc 复盘"
+Exact text split naturally into two short lines:
+"核对事件、资源身份、格式、Extent、ViewRect、方向和 Mix"
+"确认：X 输出 = Y 输入；Composite 读取 Original 与 TempY"
+Small separate concluding connection:
+"下一阶段 Lab04B：深度、法线与位置重建"
+
+Accuracy constraints:
+This is Raster + Global Pixel Shader at an after-Tonemap View Extension callback. It is not compute, temporal filtering, physically linear HDR filtering, or AO. The kernel is a fixed five-tap normalized binomial Gaussian approximation. It blurs RGB and preserves center alpha per direction; Composite preserves ORIGINAL alpha. The same Blur shader is used twice, with directions (1,0) and (0,1). Original and TempY have matching texture extent and view rect. Intermediate RDG handles are not persisted across frames. Only the final composite targets the renderer's OverrideOutput when valid. Zero mix still executes all three passes in this learning implementation, disabled means no blur callback. Do not fabricate capture measurements, GPU milliseconds, texture dimensions, or formats.

@@ -4,11 +4,13 @@
 
 适用环境：RenderLab / UE 5.8.0 CL 55116800 / Windows / DX12。
 
-这是 [Lab03 主指南](Lab03_GlobalShader_Workbench.md) 的当前步骤详解。下面的代码供你亲手添加到项目；本次只创建指导文档，没有自动创建插件代码、修改配置、编译或运行 PIE。
+文档定位（2026-09-30 更新）：这是 [Lab03 主指南](Lab03_GlobalShader_Workbench.md) 的历史接入步骤，保留 2026-09-23 的起点和示例用于复盘。当前 A/B 核心功能已跑通，进度见[主指南检查点](Lab03_GlobalShader_Workbench.md#progress)，下一步为 [Lab03C](Lab03_GlobalShader_Workbench.md#lab03c)。
 
-## 1. 当前起点与本轮目标
+下面的三参数 Pass 签名与固定启用设置属于 A 阶段；现有 Lab03B 已加入共享渲染状态和强度附加参数。不要用本文代码覆盖当前实现，也不需要重新创建文件。本文最初只提供指导，没有自动创建实现；本次同样仅更新文档说明。
 
-本轮检查已确认：
+## 1. 历史起点与本轮目标
+
+2026-09-23 编写本文时检查确认：
 
 - 插件的 Runtime 模块使用 `PostConfigInit`。
 - Shader 虚拟路径映射已工作，`FRenderLabGrayscalePS` 此前已有成功编译记录。

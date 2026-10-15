@@ -1,0 +1,17 @@
+﻿#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+
+Texture2D OriginalTexture;
+Texture2D BlurredTexture;
+SamplerState InputSampler;
+SCREEN_PASS_TEXTURE_VIEWPORT(InputViewport)
+float Mix;
+
+float4 MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0) : SV_Target0
+{
+	float2 UV = clamp(UVAndScreenPos.xy,
+		InputViewport_UVViewportBilinearMin, InputViewport_UVViewportBilinearMax);
+	float4 OriginalColor = OriginalTexture.SampleLevel(InputSampler, UV, 0);
+	float4 BlurredColor = BlurredTexture.SampleLevel(InputSampler, UV, 0);
+	return float4(lerp(OriginalColor.rgb, BlurredColor.rgb, saturate(Mix)), OriginalColor.a);
+}
