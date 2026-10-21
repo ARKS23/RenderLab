@@ -1,0 +1,19 @@
+Edit the supplied infographic. Preserve its full canvas, title, typography, colors, six numbered workflow cards, arrows, Chinese text and all other correct formulas. Make ONLY these two technical corrections, with great precision:
+
+1. In card ③ “投影到深度纹理”, the NDC-to-UV formula must use componentwise MULTIPLICATION by (0.5, -0.5), never addition. Replace that single formula line with exactly:
+“UV = NDC.xy × (0.5, -0.5) + 0.5”
+Render the multiplication sign × unmistakably, with clear spacing. Keep the separate NDC = Clip.xyz / Clip.w line and Pixel = ViewMin + UV*ViewSize unchanged.
+
+2. Redraw ONLY the geometry sketch inside the lower-left “几何示意” panel to make the spatial relationships mathematically accurate and labels unambiguous:
+- Keep a camera at the far left and point P toward the right on the ground surface.
+- Draw an outward surface normal N vertically upward from P, and tangent axes T and B along the tangent plane.
+- Draw the translucent hemisphere centered at P with its local +Z aligned with N.
+- Place Q above and to the left of P, comfortably INSIDE the hemisphere, not on or outside its rim.
+- Place visible surface point S slightly to the left of Q, on a nearby small obstacle surface, and also within Radius of P.
+- The camera center, S, and Q MUST be collinear on ONE STRAIGHT camera ray. Draw a solid straight ray from camera to S, and a dashed continuation from S to Q with EXACTLY THE SAME SLOPE. Never bend the ray at S.
+- Label Q “Q 采样点” and S “S 可见表面”, and keep “Zs < Zq”.
+- Draw the diagonal vector P→Q separately, ending precisely at Q, and label that vector “Radius × Offset”. This label must belong to P→Q, not to the vertical N arrow.
+- Keep the panel caption “几何示意：深度图在 Q 的投影处找到可见表面 S”.
+Maintain enough spacing for every label to be readable.
+
+Everything else in the infographic must remain unchanged. Keep accurate, crisp Simplified Chinese. No extra text or decorative elements.

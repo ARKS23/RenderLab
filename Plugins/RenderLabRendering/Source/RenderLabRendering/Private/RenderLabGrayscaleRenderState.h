@@ -4,7 +4,8 @@ enum class ERenderLabExperiment : uint8
 {
 	Grayscale,
 	Blur,
-	InputDebug
+	InputDebug,
+	AO
 };
 
 // 灰度设置

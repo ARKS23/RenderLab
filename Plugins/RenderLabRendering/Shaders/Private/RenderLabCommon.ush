@@ -1,0 +1,171 @@
+﻿#pragma once
+
+#include "/Engine/Private/Common.ush"
+
+bool TryLoadPosition(Texture2D DepthTexture, int2 Pixel, out float3 Position, out float LinearDepth)
+{
+	Position = float3(0, 0, 0);
+	LinearDepth = 0.0;
+
+	// 深度纹理尺寸和有效视图尺寸
+	uint TextureWidth;
+	uint TextureHeight;
+	DepthTexture.GetDimensions(TextureWidth, TextureHeight);
+
+	int2 TextureSize = int2(TextureWidth, TextureHeight);
+	int2 ViewMin = int2(View.ViewRectMinAndSize.xy);
+	int2 ViewSize = int2(View.ViewRectMinAndSize.zw);
+	int2 ViewMax = ViewMin + ViewSize; // 不包含这个边界
+
+	// 视图范围本身必须有效，并落在纹理内部。
+	if (any(ViewSize <= 0) ||
+		any(ViewMin < 0) ||
+		any(ViewMax > TextureSize))
+	{
+		return false;
+	}
+
+	// 2. 检查请求的像素，不对邻域坐标进行 clamp。
+	if (any(Pixel < ViewMin) || any(Pixel >= ViewMax))
+	{
+		return false;
+	}
+
+	// 3. 读取原始深度。
+	float DeviceZ = DepthTexture.Load(int3(Pixel, 0)).r;
+
+	// 当前 reversed-Z 路径：0 是背景。
+	if (!isfinite(DeviceZ) || DeviceZ <= 0.0 || DeviceZ > 1.0)
+	{
+		return false;
+	}
+
+	// 4. 转成线性深度，供后续比较深度连续性。
+	float Depth = ConvertFromDeviceZ(DeviceZ);
+
+	if (!isfinite(Depth) || Depth <= 0.0)
+	{
+		return false;
+	}
+
+	// 5. 使用同一像素的中心和原始 DeviceZ 重建位置。
+	float2 PixelCenter = float2(Pixel) + 0.5;
+
+	float3 P = SvPositionToTranslatedWorld(
+		float4(PixelCenter, DeviceZ, 1.0));
+
+	if (!all(isfinite(P)))
+	{
+		return false;
+	}
+
+	// 所有检查通过后，再提交输出。
+	Position = P;
+	LinearDepth = Depth;
+	return true;
+}
+
+bool TryReconstructNormal(Texture2D DepthTexture, int2 Pixel, out float3 Normal)
+{
+	Normal = float3(0, 0, 0);
+	float3 PC, PL, PR, PU, PD;
+	float ZC, ZL, ZR, ZU, ZD;
+
+	// 中心点需要有效
+	if (!TryLoadPosition(DepthTexture, Pixel, PC, ZC))
+	{
+		return false;
+	}
+
+	// 上下左右位置和深度重建
+	bool bL = TryLoadPosition(DepthTexture, Pixel + int2(-1, 0), PL, ZL);
+	bool bR = TryLoadPosition(DepthTexture, Pixel + int2( 1, 0), PR, ZR);
+	bool bU = TryLoadPosition(DepthTexture, Pixel + int2( 0,-1), PU, ZU);
+	bool bD = TryLoadPosition(DepthTexture, Pixel + int2( 0, 1), PD, ZD);
+
+	// 每个方向至少需要一个有效邻居。
+	if ((!bL && !bR) || (!bU && !bD))
+	{
+		return false;
+	}
+
+	// 深度选择更近的一侧：启发式处理深度不连续问题
+	bool bUseLeft = bL && (!bR || abs(ZL - ZC) <= abs(ZR - ZC));
+	bool bUseUp = bU && (!bD || abs(ZU - ZC) <= abs(ZD - ZC));
+
+	// 构造切线向量： Tx 始终指向屏幕右方，Ty 始终指向屏幕下方。
+	float3 Tx = bUseLeft ? PC - PL : PR - PC;
+	float3 Ty = bUseUp ? PC - PU : PD - PC;
+
+	// 排除无效或接近零长度的切线。
+	float2 TangentLengthSq = float2(dot(Tx, Tx), dot(Ty, Ty));
+	if (!all(isfinite(TangentLengthSq)) || any(TangentLengthSq <= 1e-12))
+	{
+		return false;
+	}
+
+	// 归一化
+	Tx *= rsqrt(TangentLengthSq.x);
+	Ty *= rsqrt(TangentLengthSq.y);
+
+	// 叉乘获取法线
+	float3 N = cross(Tx, Ty);
+	float NormalLengthSq = dot(N, N);
+	if (!isfinite(NormalLengthSq) || NormalLengthSq <= 1e-8)
+	{
+		return false;
+	}
+	N *= rsqrt(NormalLengthSq);
+
+	// 让法线朝向相机
+	float3 ToCamera = View.TranslatedWorldCameraOrigin - PC;
+	if (dot(N, ToCamera) < 0.0)
+	{
+		N = -N;
+	}
+
+	Normal = N;
+	return true;
+}
+
+bool TryProjectTranslatedWorldToDepthPixel(float3 Position, out float2 PixelPosition, out float DeviceZ)
+{
+	PixelPosition = float2(0.0, 0.0);
+	DeviceZ = 0.0;
+
+	// Translated World -> Clip Space
+	float4 Clip = mul(float4(Position, 1.0), View.TranslatedWorldToClip);
+
+	if (!all(isfinite(Clip)) || Clip.w <= 1e-6)
+	{
+		return false;
+	}
+
+	// Clip Space -> NDC
+	float3 NDC = Clip.xyz / Clip.w;
+	if (!all(isfinite(NDC)))
+	{
+		return false;
+	}
+
+	// NDC -> 视图UV
+	float2 ViewportUV = NDC.xy * float2(0.5, -0.5) + 0.5;
+
+	float2 ViewMin = float2(View.ViewRectMinAndSize.xy);
+	float2 ViewSize = float2(View.ViewRectMinAndSize.zw);
+
+	// 检查视图范围及 DeviceZ 范围。
+	if (any(ViewSize <= 0.0) ||
+		any(ViewportUV < 0.0) ||
+		any(ViewportUV >= 1.0) ||
+		NDC.z < 0.0 ||
+		NDC.z > 1.0)
+	{
+		return false;
+	}
+
+	PixelPosition = ViewMin + ViewportUV * ViewSize;
+	DeviceZ = NDC.z;
+
+	return all(isfinite(PixelPosition));
+}

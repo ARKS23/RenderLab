@@ -108,3 +108,18 @@ void URenderLabGrayscaleSubsystem::SetInputDebugSettings(bool bEnable)
 		}
 	);
 }
+
+void URenderLabGrayscaleSubsystem::SetAOSettings(bool bEnable)
+{
+	check(IsInGameThread());
+	if (!bAcceptingSettings || !RenderState.IsValid()) return;
+
+	const FRenderLabGrayscaleRenderState Snapshot(bEnable, ERenderLabExperiment::AO, GameStrength, BlurStrength);
+	const TSharedRef<FRenderLabGrayscaleRenderState> State = RenderState.ToSharedRef();
+	ENQUEUE_RENDER_COMMAND(UpdateRenderLabAOSettings)(
+		[State, Snapshot](FRHICommandListImmediate&)
+		{
+			*State = Snapshot;
+		}
+	);
+}

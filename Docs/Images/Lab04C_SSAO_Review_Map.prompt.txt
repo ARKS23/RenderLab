@@ -1,0 +1,97 @@
+Use case: scientific-educational / infographic-diagram.
+Asset type: RenderLab UE 5.8 graphics-learning review mind map, a new raster infographic in Simplified Chinese.
+Primary request: Draw a polished, technically accurate Chinese mind-flow diagram summarizing today's Lab04C hemisphere-sampling SSAO learning and implementation. This is an engine-programming study aid. Create an original image; no attached screenshot is a reference or an edit target.
+
+Canvas and visual style:
+Large high-resolution landscape 3:2 canvas. Clean off-white background, deep navy body text, rounded cards, thin precise arrows, generous margins and whitespace, extremely legible Chinese sans-serif typography. Headings large, formulas in readable monospace. Teal for geometry, blue for sampling, orange for occlusion, purple for RDG/output, small red caution badges. Professional engineering notebook / teaching poster, restrained flat illustration, no decorative clutter, no photographic background, no watermark or invented logo. Every formula must be correct and readable. Favor clear hierarchy over packing too many labels.
+
+Layout:
+A hybrid mind map plus directed workflow. Title across the top. Upper band has two preparation branches. The middle is the dominant, unmistakable left-to-right flow of a SINGLE PIXEL's AO calculation, arranged as six numbered cards in two orderly rows if needed, with clear arrows following 1→2→3→4→5→6. A bracket encloses stages 2–5 labeled "对每个样本循环". Stage 6 is visibly OUTSIDE that bracket. Below are a geometry teaching sketch and two review cards. Bottom narrow band shows the RDG pass/resource flow. Avoid crossing arrows or ambiguous connector paths.
+
+Title (verbatim):
+"Lab04C · SSAO 算法思维流程图"
+Subtitle:
+"深度重建 → 半球采样 → 屏幕空间遮蔽估计 → RawAO"
+
+Upper preparation card A, heading "输入与坐标合同":
+"SceneDepth：Point / Load 读取"
+"View：同一帧视图参数"
+"输入纹理 UV → ViewportUV → DepthPixel"
+"重建使用像素中心：DepthPixel + 0.5"
+"P、Q、S、N：统一 Translated World 空间"
+
+Upper preparation card B, heading "确定性的采样核":
+"固定种子 1337，一次生成 32 个样本"
+"K.z ≥ 0，length(K) ≤ 1"
+"局部半球方向均匀，样本长度偏向中心"
+"8 / 16 / 32 使用同一采样核的前缀"
+"起点：Radius = 50 cm，Bias = 1 cm"
+
+Main calculation cards, with verbatim labels/formulas:
+1. "重建中心几何"
+"P = TryLoadPosition(DepthPixel)"
+"N = TryReconstructNormal(DepthPixel)"
+"背景或无法可靠计算：AO = 1"
+
+2. "构造切线基与采样点"
+"T = normalize(cross(Ref, N))"
+"B = cross(N, T)"
+"Offset = K.x*T + K.y*B + K.z*N"
+"Q = P + Radius*Offset"
+Small annotation: "参考轴接近平行时切换；保留 Offset 的长度"
+
+3. "投影采样点 Q"
+"Clip = mul(float4(Q,1), View.TranslatedWorldToClip)"
+"NDC = Clip.xyz / Clip.w"
+"ViewportUV = NDC.xy * (0.5,-0.5) + 0.5"
+"Pixel = ViewMin + ViewportUV*ViewSize"
+"Zq = ConvertFromDeviceZ(NDC.z)"
+Concise note: "相机后 / 越界 / 无效：continue，不 clamp"
+
+4. "读取可见场景表面 S"
+"SamplePixel = floor(Pixel)"
+"TryLoadPosition → S、Zs"
+"Zs：沿相机前向递增的线性深度"
+"背景或无效：continue"
+"ValidSampleCount++"
+
+5. "判断遮蔽并加权"
+"Zs < Zq - Bias ?"
+"是：w = 1 - smoothstep(0, Radius, length(S-P))"
+"OcclusionSum += w"
+"否：本样本贡献 0"
+"距离达到 Radius 时，w = 0"
+
+6. "完整循环后归一化"
+"AO = saturate(1 - OcclusionSum / SampleCount)"
+"有效比例 = ValidSampleCount / SampleCount"
+"AO = 1：白色，未检测到遮蔽"
+"AO = 0：黑色，强遮蔽"
+RED small caution badge: "最终 return 必须放在 for 循环外"
+Smaller note: "无效样本贡献 0，分母仍是总样本数；屏幕边缘可能偏亮"
+
+Lower teaching sketch:
+A compact accurate diagram of a surface point P, outward surface normal N, a translucent hemisphere aligned with N, tangent axes T and B, a sample Q inside the hemisphere, and a camera ray passing through Q. On that same camera ray place visible surface S BETWEEN camera and Q, labeled "Zs < Zq". Label P→Q vector "Radius × Offset". It must be visually clear that Q is a generated probe and S is the first visible scene surface found from the depth buffer at Q's projection. Caption: "屏幕可见深度提供遮蔽近似；距离窗限制局部影响". Do not depict a full ray tracer from P to Q.
+
+Lower review card A, heading "投影回环验证":
+"DepthPixel + 0.5 → P → 投影回像素中心"
+"检查像素坐标误差与 DeviceZ 误差"
+"误差图接近黑色：回环误差小"
+
+Lower review card B, heading "实验对照":
+"单平面接近白；球地接触与凹角变暗"
+"球离地：接触暗区减弱"
+"固定相机、Radius、Bias、AA 与分辨率"
+"对比 8 → 16 → 32：观察采样收敛"
+
+Bottom RDG band, distinct from algorithm cards:
+"Tonemap 后实验回调"
+→ "RenderLab.AO"
+→ "RawAO · PF_R16F"
+→ "RenderLab.AOVisualize"
+→ "OverrideOutput / 新建颜色输出"
+Under the visualize step: "float4(AO, AO, AO, 1)"
+Small note: "共享 .ush 复用几何函数；C++ 显式绑定 View 与深度资源"
+
+Accuracy constraints:
+This diagram is the CORRECT intended algorithm. Do not mirror any accidental early return inside the current implementation's loop. Do not claim that 8-sample or 32-sample correctness is fully validated. Show normalization and final outputs after all loop iterations. Do not flip the linear-depth comparison for reversed-Z; the comparison uses converted LINEAR depth. Do not substitute DeviceZ for a linear/world-distance Bias. No temporal accumulation, denoiser, GTAO, lighting-composite stage, or unlearned algorithm. All text should be rendered in clear Simplified Chinese with the specified Latin technical identifiers. Maintain a calm scan-friendly composition.

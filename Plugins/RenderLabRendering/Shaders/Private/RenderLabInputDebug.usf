@@ -1,135 +1,11 @@
 ﻿#include "/Engine/Private/Common.ush"
 #include "/Engine/Private/ScreenPass.ush"
+#include "/Plugin/RenderLabRendering/Private/RenderLabCommon.ush"
 
 Texture2D SceneDepthTexture;
 
 SCREEN_PASS_TEXTURE_VIEWPORT(InputViewport)
 
-bool TryLoadPosition(int2 Pixel, out float3 Position, out float LinearDepth)
-{
-	Position = float3(0, 0, 0);
-	LinearDepth = 0.0;
-
-	// 深度纹理尺寸和有效视图尺寸
-	uint TextureWidth;
-	uint TextureHeight;
-	SceneDepthTexture.GetDimensions(TextureWidth, TextureHeight);
-
-	int2 TextureSize = int2(TextureWidth, TextureHeight);
-	int2 ViewMin = int2(View.ViewRectMinAndSize.xy);
-	int2 ViewSize = int2(View.ViewRectMinAndSize.zw);
-	int2 ViewMax = ViewMin + ViewSize; // 不包含这个边界
-
-	// 视图范围本身必须有效，并落在纹理内部。
-	if (any(ViewSize <= 0) ||
-		any(ViewMin < 0) ||
-		any(ViewMax > TextureSize))
-	{
-		return false;
-	}
-
-	// 2. 检查请求的像素，不对邻域坐标进行 clamp。
-	if (any(Pixel < ViewMin) || any(Pixel >= ViewMax))
-	{
-		return false;
-	}
-
-	// 3. 读取原始深度。
-	float DeviceZ = SceneDepthTexture.Load(int3(Pixel, 0)).r;
-
-	// 当前 reversed-Z 路径：0 是背景。
-	if (!isfinite(DeviceZ) || DeviceZ <= 0.0 || DeviceZ > 1.0)
-	{
-		return false;
-	}
-
-	// 4. 转成线性深度，供后续比较深度连续性。
-	float Depth = ConvertFromDeviceZ(DeviceZ);
-
-	if (!isfinite(Depth) || Depth <= 0.0)
-	{
-		return false;
-	}
-
-	// 5. 使用同一像素的中心和原始 DeviceZ 重建位置。
-	float2 PixelCenter = float2(Pixel) + 0.5;
-
-	float3 P = SvPositionToTranslatedWorld(
-		float4(PixelCenter, DeviceZ, 1.0));
-
-	if (!all(isfinite(P)))
-	{
-		return false;
-	}
-
-	// 所有检查通过后，再提交输出。
-	Position = P;
-	LinearDepth = Depth;
-	return true;
-}
-
-bool TryReconstructNormal(int2 Pixel, out float3 Normal)
-{
-	Normal = float3(0, 0, 0);
-	float3 PC, PL, PR, PU, PD;
-	float ZC, ZL, ZR, ZU, ZD;
-
-	// 中心点需要有效
-	if (!TryLoadPosition(Pixel, PC, ZC))
-	{
-		return false;
-	}
-
-	// 上下左右位置和深度重建
-	bool bL = TryLoadPosition(Pixel + int2(-1, 0), PL, ZL);
-	bool bR = TryLoadPosition(Pixel + int2( 1, 0), PR, ZR);
-	bool bU = TryLoadPosition(Pixel + int2( 0,-1), PU, ZU);
-	bool bD = TryLoadPosition(Pixel + int2( 0, 1), PD, ZD);
-
-	// 每个方向至少需要一个有效邻居。
-	if ((!bL && !bR) || (!bU && !bD))
-	{
-		return false;
-	}
-
-	// 深度选择更近的一侧：启发式处理深度不连续问题
-	bool bUseLeft = bL && (!bR || abs(ZL - ZC) <= abs(ZR - ZC));
-	bool bUseUp = bU && (!bD || abs(ZU - ZC) <= abs(ZD - ZC));
-
-	// 构造切线向量： Tx 始终指向屏幕右方，Ty 始终指向屏幕下方。
-	float3 Tx = bUseLeft ? PC - PL : PR - PC;
-	float3 Ty = bUseUp ? PC - PU : PD - PC;
-
-	// 排除无效或接近零长度的切线。
-	float2 TangentLengthSq = float2(dot(Tx, Tx), dot(Ty, Ty));
-	if (!all(isfinite(TangentLengthSq)) || any(TangentLengthSq <= 1e-12))
-	{
-		return false;
-	}
-
-	// 归一化
-	Tx *= rsqrt(TangentLengthSq.x);
-	Ty *= rsqrt(TangentLengthSq.y);
-
-	// 叉乘获取法线
-	float3 N = cross(Tx, Ty);
-	float NormalLengthSq = dot(N, N);
-	if (!isfinite(NormalLengthSq) || NormalLengthSq <= 1e-8)
-	{
-		return false;
-	}
-	N *= rsqrt(NormalLengthSq);
-
-	// 让法线朝向相机
-	float3 ToCamera = View.TranslatedWorldCameraOrigin - PC;
-	if (dot(N, ToCamera) < 0.0)
-	{
-		N = -N;
-	}
-
-	Normal = N;
-	return true;
-}
 
 // 找到 SceneColor 当前这个位置，在 SceneDepth 中对应的是哪个像素
 float4 MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0) : SV_Target0 {
@@ -156,20 +32,25 @@ float4 MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0) : SV_Target0 {
 	// 位置和深度重建
 	float3 Position;
 	float LinearDepth;
-	if (!TryLoadPosition(DepthPixel, Position, LinearDepth))
+	if (!TryLoadPosition(SceneDepthTexture, DepthPixel, Position, LinearDepth))
 	{
 		return float4(0, 0, 0, 1);
 	}
 
+	// 位置输出
 	// return float4(frac(Position / 500), 1.0);
+
+	// 深度输出
 	// float DisplayDepth = saturate(LinearDepth / 5000.0);
 	// return float4(DisplayDepth.xxx, 1.0);
 
 	// 重构空间法线
 	float3 Normal;
-	if (!TryReconstructNormal(DepthPixel, Normal))
+	if (!TryReconstructNormal(SceneDepthTexture, DepthPixel, Normal))
 	{
 		return float4(0, 0, 0, 1);
 	}
+
+	// 法线输出
 	return float4(Normal * 0.5 + 0.5, 1.0);
 }

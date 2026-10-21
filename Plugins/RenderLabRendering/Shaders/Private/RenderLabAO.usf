@@ -1,0 +1,131 @@
+﻿#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+#include "RenderLabCommon.ush"
+
+float4 AOSamples[32];
+int AOSampleCount;
+float AORadius;
+float AOBias;
+int AODebugMode;
+Texture2D SceneDepthTexture;
+SCREEN_PASS_TEXTURE_VIEWPORT(InputViewport)
+
+// 构造TBN矩阵
+void BuildAOBasis(float3 N, out float3 T, out float3 B)
+{
+	float3 Reference = abs(N.z) < 0.999 ? float3(0, 0, 1) : float3(1, 0, 0); // 避免与N平行
+	T = normalize(cross(Reference, N));
+	B = cross(N, T);
+}
+
+// 生成单通道AO
+float MainAOPS(noperspective float4 UVAndScreenPos : TEXCOORD0) : SV_Target0
+{
+	float Fallback = AODebugMode == 1 ? 0.0 : 1.0;
+
+	if (!isfinite(AORadius) ||
+		!isfinite(AOBias) ||
+		AORadius <= 0.0 ||
+		AOSampleCount <= 0)
+	{
+		return Fallback;
+	}
+
+	// 当前输入纹理 UV → 当前视图内部的局部 UV
+	float2 ViewprotUV = (UVAndScreenPos.xy - InputViewport_UVViewportMin) * InputViewport_UVViewportSizeInverse;
+
+	// 局部uv -> 深度纹理中的像素坐标
+	int2 DepthViewMin = int2(View.ViewRectMinAndSize.xy);
+	int2 DepthViewSize = int2(View.ViewRectMinAndSize.zw);
+	int2 DepthPixel = DepthViewMin + int2(ViewprotUV * float2(DepthViewSize));
+
+	float3 Position;
+	float LinearDepth;
+	if (!TryLoadPosition(SceneDepthTexture, DepthPixel, Position, LinearDepth)) return Fallback;
+
+	float3 Normal;
+	if (!TryReconstructNormal(SceneDepthTexture, DepthPixel, Normal)) return Fallback;
+
+	// 构造TBN
+	float3 T;
+	float3 B;
+	BuildAOBasis(Normal, T, B);
+
+	int Count = clamp(AOSampleCount, 1, 32);
+	float Bias = max(AOBias, 0.0);
+	float OcclusionSum = 0.0;
+	int ValidSampleCount = 0;
+	[loop]
+	for (int Index = 0; Index < Count; ++Index)
+	{
+		float3 K = AOSamples[Index].xyz;
+		float3 Offset = K.x * T + K.y * B + K.z * Normal; // 把局部半球样本转换到 Translated World 空间
+
+		// bool bValid = all(isfinite(Offset)) && K.z >= 0.0 &&
+		// 				length(K) <= 1.0001 &&
+		// 				abs(dot(Offset, Normal) - K.z) < 1e-3 && // 始样本沿局部 Z 轴的分量，恰好等于转换后的样本沿世界空间法线 N 的投影。
+		// 				abs(length(Offset) - length(K)) < 1e-3;  // 正交变换不改变向量长度
+		// if (!bValid) return 0.0f;
+
+		float3 QPosition = Position + Offset * AORadius; // 采样点世界坐标
+		// 投影采样点 3D->2D
+		float2 QProjectionPixel;
+		float QDeviceZ;
+		if (!TryProjectTranslatedWorldToDepthPixel(QPosition, QProjectionPixel, QDeviceZ))
+		{
+			continue;
+		}
+
+		float QLinearDepth = ConvertFromDeviceZ(QDeviceZ);
+		if (!isfinite(QLinearDepth) || QLinearDepth <= 0.0)
+		{
+			continue;
+		}
+
+		// 拿到对应的像素坐标进行采样 2D->3D
+		int2 SamplePixel = int2(floor(QProjectionPixel));
+		float3 SurfacePosition;
+		float SurfaceDepth;
+		if (!TryLoadPosition(SceneDepthTexture, SamplePixel, SurfacePosition, SurfaceDepth))
+		{
+			continue;
+		}
+
+		if (all(SamplePixel == DepthPixel))
+		{
+			continue;
+		}
+
+		++ValidSampleCount;
+		// 场景表面比采样点更靠近摄像机，贡献遮蔽
+		if (SurfaceDepth < QLinearDepth - Bias)
+		{
+			float DistanceToSurface = length(SurfacePosition - Position);
+			if (!isfinite(DistanceToSurface))
+			{
+				continue;
+			}
+
+			// 离中心越远贡献越弱，超出半径贡献为零
+			float Weight = 1.0 - smoothstep(0.0, AORadius, DistanceToSurface);
+			OcclusionSum += Weight;
+		}
+	}
+
+	if (AODebugMode == 1)
+	{
+		return float(ValidSampleCount) / float(Count);
+	}
+
+	return saturate(1.0 - OcclusionSum / float(Count));
+}
+
+Texture2D RawAOTexture;
+SamplerState AOSampler;
+
+// 读取AO，显示为灰度
+float4 MainAOVisualizePS(noperspective float4 UVAndScreenPos : TEXCOORD0) : SV_Target0
+{
+	float AO = RawAOTexture.SampleLevel(AOSampler, UVAndScreenPos.xy, 0).r;
+	return float4(AO, AO, AO, 1.0);
+}

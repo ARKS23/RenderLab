@@ -36,6 +36,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetInputDebugSettings(bool bEnable = false);
 
+	UFUNCTION(BlueprintCallable)
+	void SetAOSettings(bool bEnable = false);
+
 protected:
 	// 仅在 Game 和 PIE World 中启用
 	virtual bool DoesSupportWorldType(

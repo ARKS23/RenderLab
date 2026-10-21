@@ -1,0 +1,150 @@
+Use case: scientific-educational.
+Asset type: a new raster teaching infographic in Simplified Chinese for the RenderLab UE 5.8 project.
+Primary request: Create a polished, technically precise mind-flow map of the hemisphere-sampling SSAO algorithm learned in this conversation. Generate a brand-new image; there are no reference images or edit targets.
+
+Canvas and typography: Large, high-resolution landscape 3:2 educational poster. Crisp Simplified Chinese sans-serif text, large readable headings, clear Latin variable names and monospace formulas, careful spacing. Warm white background, dark navy text, restrained teal / blue / orange / purple section colors, fine arrows, rounded cards. A professional engineering study sheet. No decorative clutter, no invented logo, no watermark. Keep the text readable and never cut off a formula.
+
+Composition: A hybrid mind map and directed workflow. Title at top; two compact preparation cards under it. Dominant middle area contains SIX numbered algorithm cards in a clear serpentine order: 1 upper left → 2 upper center → 3 upper right → 4 lower right → 5 lower center → 6 lower left. Cards 2,3,4,5 form the sample loop; enclose only those four cards with a subtle bracket labeled “遍历 N 个样本”. A thin return connector 5→2 is labeled “下一样本”. The 5→6 exit is labeled “全部样本完成”. Card 1 is before the loop and card 6 is after it. Lower supporting area has a small geometry sketch and compact review cards. A distinct RDG resource-flow ribbon runs along the bottom. No crossing connectors.
+
+Exact title:
+“Lab04C · 半球采样 SSAO”
+Subtitle:
+“从深度重建到 RawAO 的学习复盘｜2026.10.20”
+
+Preparation card A — heading “输入与坐标”
+“SceneDepth + View”
+“纹理 UV → 视口 UV → 深度像素”
+“像素中心 = DepthPixel + 0.5”
+“P、Q、S、N：Translated World”
+
+Preparation card B — heading “固定采样核”
+“种子 1337｜一次生成 32 个样本”
+“K.z ≥ 0，length(K) ≤ 1”
+“方向均匀，样本长度偏向中心”
+“8 / 16 / 32：同一采样核的前缀”
+
+Card 1 — “① 中心几何与 TBN”
+“P：重建位置｜N：重建单位法线”
+“T = normalize(cross(Ref, N))”
+“B = cross(N, T)”
+“参考轴避开与 N 平行”
+“背景／无法可靠重建：AO = 1”
+
+Card 2 — “② 生成采样点 Q”
+“Offset = K.x*T + K.y*B + K.z*N”
+“Q = P + Radius*Offset”
+“保留 Offset 的长度”
+“Radius、Bias：世界距离单位”
+
+Card 3 — “③ 投影到深度纹理”
+“Q → Clip → NDC → ViewportUV”
+“Clip = mul(float4(Q,1), View.TranslatedWorldToClip)”
+“NDC = Clip.xyz / Clip.w”
+“UV = NDC.xy * (0.5,-0.5) + 0.5”
+“Pixel = ViewMin + UV*ViewSize”
+“相机后／越界：跳过，不 clamp”
+Wrap the long matrix formula neatly across lines if required; never omit its matrix identifier.
+
+Card 4 — “④ 读取可见表面 S”
+“SamplePixel = floor(Pixel)”
+“Load 深度 → S、Zs”
+“Zq = ConvertFromDeviceZ(QDeviceZ)”
+“Zs、Zq：同一种正向线性深度”
+“背景／无效：跳过”
+“ValidSamples++”
+
+Card 5 — “⑤ 判断遮蔽并加权”
+Prominent decision: “Zs < Zq - Bias ?”
+Yes branch text:
+“w = 1 - smoothstep(0, Radius, length(S-P))”
+“OcclusionSum += w”
+No branch: “贡献 0”
+“距离达到 Radius，权重归零”
+Make the inequality exact: Surface Zs is LESS THAN probe Zq minus Bias. Do not reverse it for reversed-Z, because these are LINEAR depths.
+
+Card 6 — “⑥ 循环结束：输出 AO”
+“AO = saturate(1 - OcclusionSum / N)”
+“有效比例 = ValidSamples / N”
+“分母 N 始终为总样本数”
+“AO = 1：白色，未检测遮蔽”
+“AO = 0：黑色，强遮蔽”
+Small orange note:
+“无效样本贡献 0；屏幕边缘可能偏亮”
+The final AO return is OUTSIDE the sample loop.
+
+Supporting geometry sketch:
+Show a surface point P with outward normal N, a translucent hemisphere oriented along N, tangent axes T and B, and a probe Q within the hemisphere. Show a separate camera and its view ray toward Q. Put visible scene surface S BETWEEN the camera and Q on that SAME camera ray, with a solid ray segment camera→S and dashed hidden continuation S→Q. S should lie on a nearby small obstacle and Q behind that surface. Labels: “P 当前像素”, “Q 采样点”, “S 可见表面”, “相机”, and “Zs < Zq”. Label the P→Q offset “Radius × Offset”.
+Caption: “深度图在 Q 的投影处找到可见表面 S”
+This must depict a screen-space depth test, not a ray traced from P to Q.
+
+Review card — “投影回环”
+“DepthPixel + 0.5 → P → 原像素中心”
+“检查像素误差与 DeviceZ 误差”
+“误差图近黑：回投误差小”
+
+Review card — “实验验证”
+“单平面白｜接触与凹角暗｜离地减弱”
+“固定相机、Radius、Bias、AA、分辨率”
+“对比 8 → 16 → 32，观察采样收敛”
+
+Bottom RDG ribbon:
+“Tonemap 后回调” → “RenderLab.AO” → “RawAO · PF_R16F” → “RenderLab.AOVisualize” → “OverrideOutput / 新建颜色输出”
+Below visualize: “float4(AO, AO, AO, 1)”
+Small footer:
+“共享 .ush 复用几何函数｜C++ 显式绑定 View、深度和采样参数”
+
+Accuracy and scope:
+This is the intended correct teaching baseline, not a claim that every current source-code branch or every scene has been validated. Show normalization after the full loop. The sample kernel is fixed and all sample counts use its prefix. P/Q/S and the geometric normal share Translated World space; Zs/Zq are linear forward depth. Point/Load sampling and floor are used only when fetching depth, while round-trip error uses continuous pixel centers. Do not add GTAO, temporal accumulation, denoising, or lighting-composite stages that have not been learned. Do not invent a constant radius or bias value. Use short text, legible hierarchy, and exact formulas rather than tiny dense paragraphs.
+
+
+---
+Revision 1: formula and geometry corrections
+
+Edit the supplied infographic. Preserve its full canvas, title, typography, colors, six numbered workflow cards, arrows, Chinese text and all other correct formulas. Make ONLY these two technical corrections, with great precision:
+
+1. In card ③ “投影到深度纹理”, the NDC-to-UV formula must use componentwise MULTIPLICATION by (0.5, -0.5), never addition. Replace that single formula line with exactly:
+“UV = NDC.xy × (0.5, -0.5) + 0.5”
+Render the multiplication sign × unmistakably, with clear spacing. Keep the separate NDC = Clip.xyz / Clip.w line and Pixel = ViewMin + UV*ViewSize unchanged.
+
+2. Redraw ONLY the geometry sketch inside the lower-left “几何示意” panel to make the spatial relationships mathematically accurate and labels unambiguous:
+- Keep a camera at the far left and point P toward the right on the ground surface.
+- Draw an outward surface normal N vertically upward from P, and tangent axes T and B along the tangent plane.
+- Draw the translucent hemisphere centered at P with its local +Z aligned with N.
+- Place Q above and to the left of P, comfortably INSIDE the hemisphere, not on or outside its rim.
+- Place visible surface point S slightly to the left of Q, on a nearby small obstacle surface, and also within Radius of P.
+- The camera center, S, and Q MUST be collinear on ONE STRAIGHT camera ray. Draw a solid straight ray from camera to S, and a dashed continuation from S to Q with EXACTLY THE SAME SLOPE. Never bend the ray at S.
+- Label Q “Q 采样点” and S “S 可见表面”, and keep “Zs < Zq”.
+- Draw the diagonal vector P→Q separately, ending precisely at Q, and label that vector “Radius × Offset”. This label must belong to P→Q, not to the vertical N arrow.
+- Keep the panel caption “几何示意：深度图在 Q 的投影处找到可见表面 S”.
+Maintain enough spacing for every label to be readable.
+
+Everything else in the infographic must remain unchanged. Keep accurate, crisp Simplified Chinese. No extra text or decorative elements.
+
+---
+Revision 2: simplified depth-order schematic (final image)
+
+Edit this infographic by replacing ONLY the lower-left geometry illustration panel (the panel directly above the bottom RDG ribbon). Keep EVERY other pixel, heading, card, formula, arrow and label outside that panel unchanged, especially the corrected formula “UV = NDC.xy × (0.5, -0.5) + 0.5”.
+
+The current perspective geometry sketch bends the camera ray at S. Remove that whole perspective sketch, its hemisphere, ground, block, P, N, T, B and diagonal arrows. Replace it with a much simpler, clean flat 2D scientific depth-order schematic. Do not draw perspective geometry.
+
+Keep the panel heading:
+“几何示意：深度图在 Q 的投影处找到可见表面 S”
+
+Inside this panel draw ONE perfectly HORIZONTAL straight camera ray:
+- a camera icon on the left,
+- a red dot S in the middle,
+- a blue dot Q to its right.
+The center of the camera icon, the center of S, and the center of Q must have EXACTLY THE SAME vertical height (same y coordinate). It is literally one horizontal line, like a ruler. A solid horizontal line goes from the camera to S. From S to Q the same horizontal line becomes dashed. No diagonal ray segments, no bends, no curved rays, no extra connectors.
+Place the camera center approximately at x=100, S at x=500, Q at x=760 within the full 1536px-wide image, all near y=830 within the existing panel. The exact sizes may adapt but all three centers MUST share the same y coordinate.
+
+Labels above the line:
+“相机”
+“S 可见表面”
+“Q 采样点”
+Between S and Q above the dashed part:
+“Zs < Zq”
+
+Add a small, readable text line below the ray:
+“Q：算法生成的探测点｜S：深度图记录的可见表面”
+
+This is a symbolic depth-order diagram, not a metric drawing. Preserve the panel boundary, visual style and all surrounding infographic content. Crisp text, no added decoration.

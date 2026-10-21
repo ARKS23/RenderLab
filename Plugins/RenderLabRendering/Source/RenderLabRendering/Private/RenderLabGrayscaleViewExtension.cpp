@@ -4,6 +4,7 @@
 #include "RenderLabGrayscaleRenderState.h"
 #include "RenderLabInputDebugShader.h"
 #include "RenderLabGrayscaleShader.h"
+#include "RenderLabAOShader.h"
 #include "RenderLabBlurShader.h"
 #include "SceneView.h"
 
@@ -50,5 +51,9 @@ void FRenderLabGrayscaleViewExtension::SubscribeToPostProcessingPass(EPostProces
 	else if (RenderState->Experiment == ERenderLabExperiment::InputDebug)
 	{
 		InOutPassCallbacks.Add(FPostProcessingPassDelegate::CreateStatic(&AddRenderLabInputDebugPass));
+	}
+	else if (RenderState->Experiment == ERenderLabExperiment::AO)
+	{
+		InOutPassCallbacks.Add(FPostProcessingPassDelegate::CreateStatic(&AddRenderLabAOPass));
 	}
 }

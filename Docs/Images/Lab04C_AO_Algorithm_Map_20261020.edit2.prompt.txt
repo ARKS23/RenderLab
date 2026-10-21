@@ -1,0 +1,25 @@
+Edit this infographic by replacing ONLY the lower-left geometry illustration panel (the panel directly above the bottom RDG ribbon). Keep EVERY other pixel, heading, card, formula, arrow and label outside that panel unchanged, especially the corrected formula “UV = NDC.xy × (0.5, -0.5) + 0.5”.
+
+The current perspective geometry sketch bends the camera ray at S. Remove that whole perspective sketch, its hemisphere, ground, block, P, N, T, B and diagonal arrows. Replace it with a much simpler, clean flat 2D scientific depth-order schematic. Do not draw perspective geometry.
+
+Keep the panel heading:
+“几何示意：深度图在 Q 的投影处找到可见表面 S”
+
+Inside this panel draw ONE perfectly HORIZONTAL straight camera ray:
+- a camera icon on the left,
+- a red dot S in the middle,
+- a blue dot Q to its right.
+The center of the camera icon, the center of S, and the center of Q must have EXACTLY THE SAME vertical height (same y coordinate). It is literally one horizontal line, like a ruler. A solid horizontal line goes from the camera to S. From S to Q the same horizontal line becomes dashed. No diagonal ray segments, no bends, no curved rays, no extra connectors.
+Place the camera center approximately at x=100, S at x=500, Q at x=760 within the full 1536px-wide image, all near y=830 within the existing panel. The exact sizes may adapt but all three centers MUST share the same y coordinate.
+
+Labels above the line:
+“相机”
+“S 可见表面”
+“Q 采样点”
+Between S and Q above the dashed part:
+“Zs < Zq”
+
+Add a small, readable text line below the ray:
+“Q：算法生成的探测点｜S：深度图记录的可见表面”
+
+This is a symbolic depth-order diagram, not a metric drawing. Preserve the panel boundary, visual style and all surrounding infographic content. Crisp text, no added decoration.
